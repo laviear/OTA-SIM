@@ -1,3 +1,4 @@
+
 export type SetupStage = 'ATTR' | 'IDOL' | 'GAME';
 export type CyclePhase = 'WEEKDAY' | 'WEEKEND';
 export type TurnState = 'DECISION' | 'LIVE_INTERACTION' | 'REVEAL' | 'RESULT' | 'REPORT';
@@ -10,8 +11,9 @@ export interface Idol {
   description: string;
   dialogues: string[];
   love: number;
-  avatarUrl: string; // 固定立绘 URL
-  chekiUrls: string[]; // 预设的拍立得 URL 列表
+  avatarUrl: string; 
+  chekiUrls: string[]; 
+  chekiDialogues: string[]; // 预生成的拍立得文字库
 }
 
 export interface ChekiDecoration {
@@ -25,7 +27,7 @@ export interface ChekiDecoration {
 export interface Cheki {
   id: number;
   idol: Idol;
-  imageUrl: string; // 直接使用预设 URL
+  imageUrl: string; 
   dialogue: string;
   date: string;
   decorations: ChekiDecoration[];
