@@ -8,7 +8,8 @@ import {
   ChatBubbleLeftRightIcon,
   MusicalNoteIcon,
   ArrowPathIcon,
-  UserIcon
+  UserIcon,
+  PhotoIcon
 } from '@heroicons/react/24/solid';
 import { GameState, Idol, Cheki, SetupStage, AttrState } from './types';
 
@@ -18,7 +19,7 @@ import { GameState, Idol, Cheki, SetupStage, AttrState } from './types';
 
 const GlobalStyles = () => (
   <style>{`
-    body { background: #fffcfd; color: #4a5568; margin: 0; padding: 0; }
+    body { background: #fffcfd; color: #4a5568; margin: 0; padding: 0; overflow-x: hidden; }
     .bg-gradient-soft {
         background: linear-gradient(135deg, #fff5f7 0%, #f0f7ff 100%);
     }
@@ -47,26 +48,33 @@ const GlobalStyles = () => (
         font-family: 'Zhi Mang Xing', cursive, 'PingFang SC', sans-serif;
     }
     .developing-img {
-        filter: grayscale(100%) contrast(50%) brightness(1.5);
-        animation: develop 3s forwards;
+        filter: grayscale(100%) brightness(1.2) blur(5px);
+        animation: develop 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     @keyframes develop {
-        0% { filter: grayscale(100%) contrast(50%) brightness(1.5) blur(10px); opacity: 0.1; }
-        100% { filter: grayscale(0%) contrast(100%) brightness(1) blur(0px); opacity: 1; }
+        0% { filter: grayscale(100%) brightness(1.2) blur(5px); opacity: 0.3; }
+        100% { filter: grayscale(0%) brightness(1) blur(0px); opacity: 1; }
     }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    
-    .img-container {
-        position: relative;
-        overflow: hidden;
-        background-color: #fceef2;
-    }
   `}</style>
 );
 
+// --- 图片组件：处理加载失败的情况 ---
+const SafeImage: React.FC<{ src: string; alt?: string; className?: string }> = ({ src, alt, className }) => {
+    const [error, setError] = useState(false);
+    if (error) {
+        return (
+            <div className={`flex items-center justify-center bg-pink-50 text-pink-200 ${className}`}>
+                <PhotoIcon className="w-1/3 h-1/3" />
+            </div>
+        );
+    }
+    return <img src={src} alt={alt} className={className} onError={() => setError(true)} />;
+};
+
 // =====================================================================================
-// 🛠️ 预设偶像数据 (包含预生成的拍立得文字库)
+// 🛠️ 预设偶像数据 (Avatar 已更新为最新上传的 14-17 号文件)
 // =====================================================================================
 
 const PRESET_IDOLS: Idol[] = [
@@ -78,11 +86,11 @@ const PRESET_IDOLS: Idol[] = [
         description: '团队里的闪耀 C 位，粉色双马尾和甜美笑容是她的标志。她发誓要让每一个粉丝都获得幸福。',
         dialogues: ["爱你哟，最喜欢看你挥舞荧光棒的样子了！"],
         love: 10,
-        avatarUrl: './input_file_0.png',
+        avatarUrl: 'input_file_14.png', // 最新上传的粉发偶像图
         chekiUrls: [
-            './input_file_4.png', './input_file_5.png', './input_file_6.png', './input_file_7.png',
-            './input_file_8.png', './input_file_9.png', './input_file_10.png', './input_file_11.png',
-            './input_file_12.png', './input_file_13.png'
+            'input_file_4.png', 'input_file_5.png', 'input_file_6.png', 'input_file_7.png',
+            'input_file_8.png', 'input_file_9.png', 'input_file_10.png', 'input_file_11.png',
+            'input_file_12.png', 'input_file_13.png'
         ],
         chekiDialogues: [
             "给最亲爱的 {{playerName}}：今天的应援色超级漂亮！谢谢你一直看着我，爱莉也会一直看着你的哦~ 啾！",
@@ -105,7 +113,7 @@ const PRESET_IDOLS: Idol[] = [
         description: '地下 Live 现场的女王。比起甜言蜜语，她更倾向于用激烈的吉他扫弦和不羁的眼神征服你的心。',
         dialogues: ["哼，又在那傻站着干嘛？我的演出可还没结束。"],
         love: 5,
-        avatarUrl: './input_file_1.png',
+        avatarUrl: 'input_file_15.png', // 最新上传的紫发摇滚图
         chekiUrls: [],
         chekiDialogues: [
             "喂，{{playerName}}。今天的 Call 喊得还不够响亮啊，下次再不卖力点，我可是会假装没看见你的。",
@@ -128,7 +136,7 @@ const PRESET_IDOLS: Idol[] = [
         description: '仿佛从油画中走出的森林少女。她是众人的白月光，却只在特典会时为你露出那抹最真实的微笑。',
         dialogues: ["您能来到这里，对我来说就是最美好的恩赐。"],
         love: 7,
-        avatarUrl: './input_file_2.png',
+        avatarUrl: 'input_file_16.png', // 最新上传的优雅长发图
         chekiUrls: [],
         chekiDialogues: [
             "致 {{playerName}} 先生/小姐：感谢您在漫漫星海中找到了微不足道的我。愿这照片能陪您入梦。",
@@ -151,7 +159,7 @@ const PRESET_IDOLS: Idol[] = [
         description: '能量满载的元气少女！她的世界里到处是色彩和欢笑，只要她在台上跳跃，阴霾就会一扫而空。',
         dialogues: ["哟！今天的应援声超级大哦！阳葵听到了！Yeah！"],
         love: 8,
-        avatarUrl: './input_file_3.png',
+        avatarUrl: 'input_file_17.png', // 最新上传的元气波普图
         chekiUrls: [],
         chekiDialogues: [
             "噢耶！{{playerName}}！看到我刚才那个超级大跳了吗？那是专门为你做的特技动作哦！炸裂吧！",
@@ -190,9 +198,7 @@ const App: React.FC = () => {
     const [chekiQueue, setChekiQueue] = useState<Cheki[]>([]);
     const [currentCheki, setCurrentCheki] = useState<Cheki | null>(null);
     const [chekiCounts, setChekiCounts] = useState<Record<string, number>>({});
-    const [isGenerating, setIsGenerating] = useState(false);
 
-    // 拍立得生成逻辑（重构：本地即时生成，解决卡顿）
     const startChekiSession = () => {
         const idol = gameState.pushedIdols[0];
         const count = chekiCounts[idol.id] || 0;
@@ -204,18 +210,13 @@ const App: React.FC = () => {
         const totalCost = count * 200;
         if (gameState.money < totalCost) return;
 
-        setIsGenerating(true);
         const newQueue: Cheki[] = [];
-        
-        // 瞬间生成所有拍立得，不再调用异步 API
         for (let i = 0; i < count; i++) {
-            // 1. 随机图片逻辑
             let finalImageUrl = idol.avatarUrl;
             if (idol.chekiUrls && idol.chekiUrls.length > 0) {
                 finalImageUrl = idol.chekiUrls[Math.floor(Math.random() * idol.chekiUrls.length)];
             }
 
-            // 2. 随机台本并注入玩家名
             let rawDialogue = "今天也要一直一直想我哦！";
             if (idol.chekiDialogues && idol.chekiDialogues.length > 0) {
                 rawDialogue = idol.chekiDialogues[Math.floor(Math.random() * idol.chekiDialogues.length)];
@@ -251,7 +252,6 @@ const App: React.FC = () => {
         }));
         setChekiQueue(newQueue);
         setChekiCounts({});
-        setIsGenerating(false); // 秒开
     };
 
     const handleWork = () => {
@@ -330,7 +330,7 @@ const App: React.FC = () => {
         return (
             <div className="min-h-screen bg-gradient-soft flex items-center justify-center p-6 font-sans">
                 <GlobalStyles />
-                <div className="w-full max-w-sm glass-card rounded-[3rem] p-10 animate-in fade-in zoom-in duration-500 text-center">
+                <div className="w-full max-sm:max-w-xs max-w-sm glass-card rounded-[3rem] p-10 animate-in fade-in zoom-in duration-500 text-center">
                     <div className="w-20 h-20 bg-pink-100 rounded-[2.2rem] mx-auto mb-5 flex items-center justify-center animate-floating border-4 border-white shadow-sm">
                         <UserIcon className="w-10 h-10 text-pink-400" />
                     </div>
@@ -366,7 +366,7 @@ const App: React.FC = () => {
                     {PRESET_IDOLS.map((idol) => (
                         <div key={idol.id} onClick={() => setGameState(p => ({...p, pushedIdols: [idol]}))} className={`glass-card p-5 rounded-[2.5rem] flex items-center gap-6 cursor-pointer transition-all border-4 ${gameState.pushedIdols[0]?.id === idol.id ? 'border-pink-300 scale-102 bg-pink-50/50' : 'border-white opacity-80 hover:opacity-100'}`}>
                             <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-sm flex-shrink-0 bg-pink-50">
-                                <img src={idol.avatarUrl} alt={idol.name} className="w-full h-full object-cover" />
+                                <SafeImage src={idol.avatarUrl} alt={idol.name} className="w-full h-full object-cover" />
                             </div>
                             <div className="text-left">
                                 <div className="flex items-center gap-2 mb-1">
@@ -406,7 +406,7 @@ const App: React.FC = () => {
 
                 <div className="flex-1 flex flex-col items-center justify-center relative">
                     <div className="relative w-full aspect-[3/4] bg-white rounded-[3rem] p-4 shadow-2xl border-[12px] border-white animate-floating overflow-hidden bg-pink-50">
-                        <img src={mainIdol.avatarUrl} className="w-full h-full object-cover rounded-[2.2rem]" />
+                        <SafeImage src={mainIdol.avatarUrl} className="w-full h-full object-cover rounded-[2.2rem]" />
                         <div className="absolute inset-0 bg-gradient-to-t from-pink-100/30 to-transparent"></div>
                         <div className="absolute bottom-8 left-8 right-8 bg-white/95 p-5 rounded-[2rem] border border-pink-50 shadow-xl">
                             <h2 className="text-2xl font-black text-pink-500 mb-1">{mainIdol.name}</h2>
@@ -455,7 +455,9 @@ const App: React.FC = () => {
                         <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase mb-10">Capture your heartbeat (¥200/ea)</p>
                         <div className="bg-white p-7 rounded-[2.5rem] border-2 border-pink-50 mb-10 flex items-center justify-between shadow-inner">
                             <div className="flex items-center gap-5 text-left">
-                                <img src={mainIdol.avatarUrl} className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-sm" />
+                                <div className="w-16 h-16 rounded-2xl overflow-hidden border-4 border-white shadow-sm">
+                                    <SafeImage src={mainIdol.avatarUrl} className="w-full h-full object-cover" />
+                                </div>
                                 <span className="text-lg font-black text-slate-700">{mainIdol.name}</span>
                             </div>
                             <div className="flex items-center gap-6">
@@ -477,9 +479,9 @@ const App: React.FC = () => {
                         <div className="text-center animate-floating text-pink-400 font-black text-xl">正在显影...</div>
                     ) : (
                         <div className="relative w-full h-full flex flex-col items-center justify-center" onClick={revealNext}>
-                            <div className="relative bg-white p-6 pb-24 shadow-2xl max-w-[340px] rounded-sm border border-slate-100" style={{ transform: `rotate(${currentCheki.rotation}deg)` }}>
+                            <div className="relative bg-white p-6 pb-24 shadow-2xl max-w-[340px] w-full rounded-sm border border-slate-100" style={{ transform: `rotate(${currentCheki.rotation}deg)` }}>
                                 <div className="aspect-[3/4] w-full bg-slate-100 overflow-hidden relative border-2 border-slate-50">
-                                    <img src={currentCheki.imageUrl} className="w-full h-full object-cover developing-img" />
+                                    <SafeImage src={currentCheki.imageUrl} className="w-full h-full object-cover developing-img" />
                                 </div>
                                 <div className="absolute bottom-6 left-0 right-0 px-8">
                                     <div className="text-[14px] text-pink-500 font-black scribble-font leading-relaxed text-center whitespace-pre-wrap bg-pink-50/40 p-5 rounded-2xl border border-pink-100/40 italic">
