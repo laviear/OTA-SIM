@@ -3,294 +3,97 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>地偶阿宅模拟器 - v1.3.1 Stable</title>
-    <!-- 核心依赖：通过 UMD 方式加载，最稳健的方案 -->
+    <title>地偶阿宅模拟器：武道馆之约</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #000;
-            color: white;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+        :root {
+            --oshi-pink: #E1007E;
+            --oshi-light: #FFCCE5;
         }
-        .pixel-border {
-            border: 4px solid black;
-            box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: #0d0d0d; 
+            color: white; 
+            margin: 0; 
+            user-select: none; 
+            overflow: hidden; 
         }
-        .pixel-border-sm {
-            border: 2px solid black;
-            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        .font-zcool { font-family: 'ZCOOL+KuaiLe', cursive; }
+        .font-rash { font-family: 'Ma Shan Zheng', cursive; }
+        
+        .anime-glow { 
+            filter: drop-shadow(0 0 15px rgba(225, 0, 126, 0.6));
         }
-        .pixel-button:active {
-            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
-            transform: translate(2px, 2px);
+        .dream-gradient { 
+            background: radial-gradient(circle at center, #2a0a1a 0%, #000000 100%); 
         }
-        @keyframes week-splash {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+        
+        @keyframes idol-float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-12px) scale(1.03); }
         }
-        .animate-week {
-            animation: week-splash 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        .idol-animation { animation: idol-float 4s ease-in-out infinite; }
+        
+        .penlight {
+            width: 5px;
+            height: 120px;
+            border-radius: 10px;
+            position: absolute;
+            bottom: 0;
+            transform-origin: bottom center;
+            opacity: 0.8;
+            filter: blur(1px);
         }
+        
+        @keyframes swing {
+            from { transform: rotate(-45deg) translateY(0); }
+            to { transform: rotate(45deg) translateY(-20px); }
+        }
+        .swing-anim { animation: swing 0.15s infinite alternate ease-in-out; }
+
+        .cheki-photo {
+            background: white;
+            padding: 8px 8px 32px 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border-radius: 2px;
+            position: absolute;
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .typewriter-text {
+            display: inline-block;
+            overflow: hidden;
+            border-right: 2px solid var(--oshi-pink);
+            white-space: nowrap;
+            animation: typing 2s steps(30, end), blink .75s step-end infinite;
+        }
+        @keyframes typing { from { width: 0 } to { width: 100% } }
+        @keyframes blink { from, to { border-color: transparent } 50% { border-color: var(--oshi-pink); } }
+
+        .btn-disabled {
+            background: #333 !important;
+            color: #666 !important;
+            cursor: not-allowed;
+            border-color: #444 !important;
+        }
+        
         ::-webkit-scrollbar { display: none; }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "@heroicons/react/": "https://esm.sh/@heroicons/react@^2.2.0/",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
-
-    <!-- 注意：这里没有任何 importmap，直接使用 Babel 解析 React 代码 -->
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = window.React;
-
-        const Icon = ({ name, className = "w-4 h-4" }) => {
-            useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            }, [name]);
-            return <i data-lucide={name} className={className}></i>;
-        };
-
-        const App = () => {
-            const [gameState, setGameState] = useState({
-                money: 3000,
-                san: 100,
-                love: 0,
-                week: 1,
-                cyclePhase: 'WEEKDAY',
-                turnState: 'DECISION',
-                lastLog: "又是新的一周。梦梦在社交平台上发了晚安，今天要为了她更努力打工！",
-                lastChekiSeeds: [],
-            });
-
-            const [showWeekSplash, setShowWeekSplash] = useState(false);
-            const [showToast, setShowToast] = useState(false);
-
-            const IDOL_NAME = "HOSHINO YUME";
-            const WAGE = 1000;
-            const CHEKI_PRICE = 80;
-            const TICKET_PRICE = 50;
-
-            const handleShare = async () => {
-                const currentUrl = window.location.href;
-                const shareText = `🎮 【地偶阿宅模拟器】战报\n📅 第 ${gameState.week} 周\n❤️ 爱意：${gameState.love}\n💰 资产：$${gameState.money}\n🧠 理智：${gameState.san}%\n🔗 立即应援：${currentUrl}`;
-                if (navigator.share) {
-                    try { await navigator.share({ title: '地偶阿宅模拟器', text: shareText, url: currentUrl }); }
-                    catch (err) { copyToClipboard(shareText); }
-                } else { copyToClipboard(shareText); }
-            };
-
-            const copyToClipboard = (text) => {
-                navigator.clipboard.writeText(text).then(() => {
-                    setShowToast(true);
-                    setTimeout(() => setShowToast(false), 2000);
-                }).catch(() => alert("复制成功"));
-            };
-
-            const getIdolImage = () => {
-                let seed = 'yume-v5-soft';
-                if (gameState.love >= 120) seed = 'yume-v5-love-pixel';
-                else if (gameState.love >= 50) seed = 'yume-v5-dreamy';
-                return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&backgroundColor=ffdfed`;
-            };
-
-            const handleWork = () => {
-                setGameState(prev => ({
-                    ...prev,
-                    money: prev.money + WAGE,
-                    san: Math.max(0, prev.san - 20),
-                    turnState: 'RESULT',
-                    lastLog: `在便利店搬了一整天货。虽然累，但为了给梦梦打榜，拼了！\n\n💸 MONEY +${WAGE} | 💀 SAN -20`
-                }));
-            };
-
-            const handleInternet = () => {
-                setGameState(prev => ({
-                    ...prev,
-                    san: Math.min(100, prev.san + 25),
-                    turnState: 'RESULT',
-                    lastLog: `在网络上安利梦梦，看到点赞数上升，心情大好！\n\n✨ SAN +25`
-                }));
-            };
-
-            const handleLive = () => {
-                if (gameState.money < TICKET_PRICE) return;
-                setGameState(prev => ({
-                    ...prev,
-                    money: prev.money - TICKET_PRICE,
-                    turnState: 'LIVE_INTERACTION',
-                    lastLog: `Live House 的灯光亮起，梦梦登场了！她是今晚最亮的星！`
-                }));
-            };
-
-            const handleBuyCheki = (count) => {
-                const totalCost = CHEKI_PRICE * count;
-                if (gameState.money < totalCost) return;
-                const loveGain = (count * 15) + (count >= 10 ? 30 : 5);
-                const sanGain = 15 + (count * 4);
-                const newSeeds = Array.from({ length: count }, (_, i) => `cheki-${Math.random()}-${i}`);
-                setGameState(prev => ({
-                    ...prev,
-                    money: prev.money - totalCost,
-                    love: prev.love + loveGain,
-                    san: Math.min(100, prev.san + sanGain),
-                    turnState: 'RESULT',
-                    lastChekiSeeds: newSeeds,
-                    lastLog: count === 0 ? "没钱拍切琪，只能在角落默默看着..." : `和梦梦拍了 ${count} 张切琪！她对我说“谢谢你一直都在”！\n\n❤️ LOVE +${loveGain}`
-                }));
-            };
-
-            const handleStayHome = () => {
-                setGameState(prev => ({
-                    ...prev,
-                    san: Math.min(100, prev.san + 15),
-                    turnState: 'RESULT',
-                    lastLog: `在家休息，回味之前的演出视频。`
-                }));
-            };
-
-            const handleNextPhase = () => {
-                if (gameState.cyclePhase === 'WEEKEND') {
-                    setShowWeekSplash(true);
-                    setTimeout(() => {
-                        setGameState(prev => ({
-                            ...prev,
-                            week: prev.week + 1,
-                            cyclePhase: 'WEEKDAY',
-                            turnState: 'DECISION',
-                            lastChekiSeeds: [],
-                            lastLog: `新的一周开始了，目标是让更多人知道梦梦！`
-                        }));
-                        setShowWeekSplash(false);
-                    }, 1200);
-                } else {
-                    setGameState(prev => ({ ...prev, cyclePhase: 'WEEKEND', turnState: 'DECISION', lastLog: "周末公演日到了！" }));
-                }
-            };
-
-            return (
-                <div className="min-h-screen flex flex-col max-w-md mx-auto relative overflow-hidden border-x-8 border-gray-900 shadow-2xl bg-[#0a0a0a]">
-                    {showToast && (
-                        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[200] bg-yellow-400 text-black px-6 py-3 pixel-border animate-bounce text-xs font-bold">
-                            已复制 📢
-                        </div>
-                    )}
-
-                    {showWeekSplash && (
-                        <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center text-white">
-                            <div className="animate-week text-center">
-                                <h2 className="text-6xl font-black italic tracking-tighter">WEEK {gameState.week + 1}</h2>
-                            </div>
-                        </div>
-                    )}
-
-                    <header className="bg-black text-white p-4 border-b-4 border-pink-600 grid grid-cols-4 gap-1 z-10">
-                        <div className="flex flex-col items-center border-r border-gray-800">
-                            <span className="text-[8px] text-gray-500 uppercase">Wk</span>
-                            <span className="text-lg italic leading-none">{gameState.week}</span>
-                        </div>
-                        <div className="flex flex-col items-center border-r border-gray-800">
-                            <span className="text-[8px] text-green-500 uppercase">Cash</span>
-                            <span className="text-lg text-green-400 leading-none">${gameState.money}</span>
-                        </div>
-                        <div className="flex flex-col items-center border-r border-gray-800">
-                            <span className="text-[8px] text-blue-500 uppercase">San</span>
-                            <span className="text-lg text-blue-300 leading-none">{gameState.san}%</span>
-                        </div>
-                        <div className="flex items-center justify-center">
-                            <button onClick={handleShare} className="bg-pink-600 p-2 pixel-border-sm"><Icon name="share-2" /></button>
-                        </div>
-                    </header>
-
-                    <div className="bg-white border-b-4 border-black p-4 flex items-center space-x-4 z-10 text-black">
-                        <img src="https://api.dicebear.com/7.x/pixel-art/svg?seed=yume-static&backgroundColor=ffdfed" className="w-10 h-10 pixel-border-sm" />
-                        <div className="flex-1">
-                            <h1 className="text-sm font-black uppercase">{IDOL_NAME}</h1>
-                            <div className="text-[8px] bg-pink-500 text-white inline-block px-1">Ranking: No.1</div>
-                        </div>
-                        <div className="pixel-border-sm bg-black text-pink-500 px-3 py-1 flex flex-col items-center">
-                            <span className="text-[8px] font-bold leading-none">LOVE</span>
-                            <span className="text-lg leading-none italic font-black">{gameState.love}</span>
-                        </div>
-                    </div>
-
-                    <main className="flex-1 p-4 flex flex-col items-center bg-[#151515] overflow-y-auto">
-                        <div className="w-full aspect-square pixel-border bg-black relative mb-6">
-                            {gameState.lastChekiSeeds?.length > 0 && gameState.turnState === 'RESULT' ? (
-                                <div className="flex flex-wrap justify-center gap-1 p-2">
-                                    {gameState.lastChekiSeeds.slice(0, 8).map((s, i) => (
-                                        <img key={i} src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${s}`} className="w-16 h-16 bg-white p-1 pixel-border-sm" style={{transform:`rotate(${Math.random()*20-10}deg)`}} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <img src={getIdolImage()} className={`w-full h-full object-cover transition-all duration-700 ${gameState.turnState !== 'RESULT' ? 'blur-xl' : ''}`} />
-                            )}
-                        </div>
-
-                        <div className="w-full bg-white pixel-border p-4 min-h-[140px] flex flex-col items-center justify-center text-center text-black">
-                            <p className="text-sm font-bold">{gameState.lastLog}</p>
-                            {gameState.turnState === 'RESULT' && (
-                                <button onClick={handleNextPhase} className="mt-4 bg-yellow-400 pixel-border pixel-button px-8 py-2 text-xs font-black">
-                                    继续 <Icon name="arrow-right" className="inline ml-1" />
-                                </button>
-                            )}
-                        </div>
-                    </main>
-
-                    {(gameState.turnState === 'DECISION' || gameState.turnState === 'LIVE_INTERACTION') && (
-                        <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
-                            <div className="bg-white pixel-border w-full text-black">
-                                <div className={`p-2 text-white text-center text-[10px] font-black uppercase ${gameState.turnState === 'LIVE_INTERACTION' ? 'bg-pink-600' : 'bg-blue-600'}`}>
-                                    {gameState.turnState === 'LIVE_INTERACTION' ? '特典会时间' : '行动决策'}
-                                </div>
-                                <div className="p-4 space-y-3">
-                                    {gameState.turnState === 'LIVE_INTERACTION' ? (
-                                        <>
-                                            <button onClick={() => handleBuyCheki(1)} className="w-full pixel-border-sm p-3 flex justify-between items-center text-xs font-bold bg-pink-50">拍一张合影 <span>-$80</span></button>
-                                            <button onClick={() => handleBuyCheki(10)} className="w-full pixel-border-sm p-3 flex justify-between items-center text-xs font-bold bg-pink-100 border-pink-400">激情十连拍 <span>-$800</span></button>
-                                            <button onClick={() => handleBuyCheki(0)} className="w-full text-gray-400 text-[10px] text-center uppercase">[ 结束离开 ]</button>
-                                        </>
-                                    ) : (
-                                        gameState.cyclePhase === 'WEEKDAY' ? (
-                                            <>
-                                                <button onClick={handleWork} className="w-full pixel-border-sm p-3 flex justify-between items-center text-xs font-bold bg-green-50 border-green-300">便利店打工 <span>+$1000</span></button>
-                                                <button onClick={handleInternet} className="w-full pixel-border-sm p-3 flex justify-between items-center text-xs font-bold bg-blue-50 border-blue-300">网络应援 <span>SAN+</span></button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <button onClick={handleLive} className="w-full pixel-border-sm p-3 flex justify-between items-center text-xs font-bold bg-pink-50 border-pink-300">去现场看 Live <span>-$50</span></button>
-                                                <button onClick={handleStayHome} className="w-full pixel-border-sm p-3 flex justify-between items-center text-xs font-bold bg-gray-50 text-gray-400">在家休息</button>
-                                            </>
-                                        )
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        const root = window.ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>
