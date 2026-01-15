@@ -1,15 +1,2 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
-
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// 此文件在生产部署环境下不生效。
+// 游戏逻辑已全部整合至 index.html 以实现 GitHub Pages 一键运行。
