@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>地偶阿宅模拟器 - Retro Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --pixel-border: 4px;
+      }
+      body {
+        font-family: 'Silkscreen', "Noto Sans SC", -apple-system, sans-serif;
+        background-color: #1a1a1a;
+        overscroll-behavior: none;
+      }
+      .pixel-border {
+        border: var(--pixel-border) solid black;
+        box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+      }
+      .pixel-border-sm {
+        border: 2px solid black;
+        box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+      }
+      .pixel-button:active {
+        box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+        transform: translate(2px, 2px);
+      }
+      @keyframes week-splash {
+        0% { transform: scale(0.5); opacity: 0; }
+        50% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-week {
+        animation: week-splash 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@heroicons/react/": "https://esm.sh/@heroicons/react@^2.2.0/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
