@@ -1,22 +1,57 @@
+export type SetupStage = 'ATTR' | 'IDOL' | 'GAME';
 export type CyclePhase = 'WEEKDAY' | 'WEEKEND';
-export type TurnState = 'DECISION' | 'LIVE_INTERACTION' | 'RESULT';
+export type TurnState = 'DECISION' | 'LIVE_INTERACTION' | 'REVEAL' | 'RESULT' | 'REPORT';
+
+export interface Idol {
+  id: string;
+  name: string;
+  color: string;
+  styleTag: string;
+  description: string;
+  dialogues: string[];
+  love: number;
+  avatarUrl: string; // 固定立绘 URL
+  chekiUrls: string[]; // 预设的拍立得 URL 列表
+}
+
+export interface ChekiDecoration {
+  emoji: string;
+  left: number;
+  top: number;
+  rotate: number;
+  scale: number;
+}
+
+export interface Cheki {
+  id: number;
+  idol: Idol;
+  imageUrl: string; // 直接使用预设 URL
+  dialogue: string;
+  date: string;
+  decorations: ChekiDecoration[];
+  rotation: number;
+}
+
+export interface WeeklyStats {
+  moneyEarned: number;
+  moneySpent: number;
+  sanLost: number;
+  loveGained: number;
+}
 
 export interface GameState {
   money: number;
-  san: number; // Sanity
-  love: number; // Idol affection
+  san: number;
   week: number;
-  cyclePhase: CyclePhase; // Current time of week
-  turnState: TurnState; // Are we choosing, interacting, or reading results?
-  lastLog: string; // Text to display in the result phase
-  lastChekiSeeds?: string[]; // Seeds for multiple cheki display
+  cyclePhase: CyclePhase;
+  turnState: TurnState;
+  lastLog: string;
+  pushedIdols: Idol[];
+  weeklyStats: WeeklyStats;
 }
 
-export interface GameAction {
-  label: string;
-  handler: () => void;
-  variant: 'primary' | 'secondary' | 'outline';
-  disabled?: boolean;
-  cost?: string;
-  desc?: string;
+export interface AttrState {
+  looks: number;
+  wealth: number;
+  sanity: number;
 }

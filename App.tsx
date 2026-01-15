@@ -1,387 +1,651 @@
-import React, { useState, useEffect } from 'react';
-import { GameState } from './types';
+import React, { useState } from 'react';
+import { GoogleGenAI } from "@google/genai";
 import { 
   BriefcaseIcon, 
-  ComputerDesktopIcon, 
-  TicketIcon, 
-  HomeIcon,
-  ArrowRightIcon,
+  HeartIcon, 
+  SparklesIcon, 
   CameraIcon,
-  SparklesIcon,
-  ShareIcon,
-  HeartIcon
+  ChatBubbleLeftRightIcon,
+  MusicalNoteIcon,
+  FaceSmileIcon
 } from '@heroicons/react/24/solid';
+import { GameState, Idol, Cheki, SetupStage, AttrState } from './types';
+
+// =====================================================================================
+// 🎨 视觉风格配置 (清新/马卡龙/甜美)
+// =====================================================================================
+
+const GlobalStyles = () => (
+  <style>{`
+    /* 基础重置 */
+    body { background: #fffcfd; color: #4a5568; }
+
+    /* 极简清新背景 */
+    .bg-gradient-soft {
+        background: linear-gradient(135deg, #fff5f7 0%, #f0f7ff 100%);
+    }
+
+    /* 马卡龙玻璃卡片 */
+    .glass-card { 
+        background: rgba(255, 255, 255, 0.85); 
+        backdrop-filter: blur(10px); 
+        border: 2px solid #ffffff;
+        box-shadow: 0 10px 25px rgba(255, 182, 193, 0.15);
+    }
+
+    /* 甜蜜气泡按钮 */
+    .btn-sweet {
+        background: #ff9fb2;
+        color: white;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-bottom: 4px solid #f48a9f;
+    }
+    .btn-sweet:active {
+        transform: translateY(2px);
+        border-bottom-width: 2px;
+    }
+
+    /* 浮动动画 */
+    @keyframes floating {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+    .animate-floating { animation: floating 3s ease-in-out infinite; }
+
+    /* 文字渲染优化 */
+    .scribble-font {
+        font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-weight: 700;
+    }
+
+    /* 拍立得显影光效 */
+    .shimmer-light {
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+  `}</style>
+);
+
+// =====================================================================================
+// 🛠️ 静态资源 & 恋爱台词
+// =====================================================================================
+
+// 优化图片生成链接，确保稳定显示
+const getStableImageUrl = (prompt: string, seed: number) => {
+    const encoded = encodeURIComponent(`(anime art style:1.3), high quality, vibrant colors, soft lighting, ${prompt}, solo, masterpiece`);
+    return `https://image.pollinations.ai/prompt/${encoded}?width=400&height=500&nologo=true&seed=${seed}&model=flux`;
+};
+
+const STICKERS = ['🎀', '💘', '✨', '🌸', '🍭', '🧸', '🍓', '💌', '🐾', '🎈', '🍦', '🍰'];
+
+const PRESET_IDOLS: Idol[] = [
+    {
+        id: 'idol_sweet',
+        name: '桃乃 爱莉',
+        color: '#ff85a1',
+        styleTag: '王道甜美',
+        description: '永远带着笑容的女孩。只要和你眼神对上，她就会露出最甜的酒窝。',
+        dialogues: [
+            "那个...刚才在台上，我的视线一直跟着你走哦。",
+            "和你在一起的时候，总觉得空气都是甜甜的呢~",
+            "这是给你的特别奖励，不许告诉别人哦？",
+            "嘿嘿，只要你在，我就是世界上最幸福的偶像！",
+            "最喜欢你啦！下次还要来哦！"
+        ],
+        love: 10,
+        avatarUrl: getStableImageUrl("cute anime girl, pink hair, twin tails, idol costume, happy smile, sparkling eyes", 888),
+        chekiUrls: [
+             getStableImageUrl("anime girl, pink hair, blowing a kiss, selfie, close up", 88801),
+             getStableImageUrl("anime girl, pink hair, holding a heart sign, blushing, close up", 88802),
+             getStableImageUrl("anime girl, pink hair, winking, peace sign, cute", 88803),
+        ]
+    },
+    {
+        id: 'idol_cool',
+        name: '苍井 诗织',
+        color: '#60a5fa',
+        styleTag: '冷娇才女',
+        description: '外表高冷但内心温柔。只有在写给你的歌词里，才藏着她羞涩的告白。',
+        dialogues: [
+            "虽然我不太擅长说话...但请一直看着我，好吗？",
+            "这首歌的灵感是你。虽然听起来很肉麻，但...是真心话。",
+            "总觉得，只有你才能看到我真正的样子。",
+            "你的存在，对我来说已经像空气一样不可或缺了。",
+            "……笨蛋，我也想你了。"
+        ],
+        love: 5,
+        avatarUrl: getStableImageUrl("anime girl, blue short hair, cool gaze, beautiful violin girl, white dress", 999),
+        chekiUrls: [
+            getStableImageUrl("anime girl, blue hair, shy smile, looking away, close up", 99901),
+            getStableImageUrl("anime girl, blue hair, holding a flower, gentle look, close up", 99902),
+            getStableImageUrl("anime girl, blue hair, adjusting glasses, cute embarrassment, close up", 99903),
+        ]
+    },
+    {
+        id: 'idol_genki',
+        name: '夏目 阳葵',
+        color: '#fbbf24',
+        styleTag: '活力满分',
+        description: '笑容极具感染力的女孩。她会拉着你的手，带你奔向每一个充满光的明天。',
+        dialogues: [
+            "最喜欢你为我应援的声音了！全世界第一响亮！",
+            "呐呐，下次约会去海边吧？我想和你一起吹吹风~",
+            "被你夸奖的话，感觉能量瞬间充满了！",
+            "不管发生什么，阳葵都会一直守护你的笑容哦！",
+            "来击个掌吧！嘿嘿，最喜欢你啦！"
+        ],
+        love: 8,
+        avatarUrl: getStableImageUrl("anime girl, orange short hair, high ponytail, energetic pose, sunny background", 777),
+        chekiUrls: [
+            getStableImageUrl("anime girl, orange hair, laughing, showing teeth, cute", 77701),
+            getStableImageUrl("anime girl, orange hair, peace sign near eye, winking", 77702),
+            getStableImageUrl("anime girl, orange hair, messy hair, cute tired face, close up", 77703),
+        ]
+    }
+];
+
+// =====================================================================================
+// 🎮 逻辑层
+// =====================================================================================
 
 const App: React.FC = () => {
-  // Game State
-  const [gameState, setGameState] = useState<GameState>({
-    money: 3000,
-    san: 100,
-    love: 0,
-    week: 1,
-    cyclePhase: 'WEEKDAY',
-    turnState: 'DECISION',
-    lastLog: "又是新的一周。梦梦在社交平台上发了晚安，今天要为了她更努力打工！",
-    lastChekiSeeds: [],
-  });
-
-  const [showWeekSplash, setShowWeekSplash] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-
-  // Constants
-  const IDOL_NAME = "HOSHINO YUME";
-  const WAGE = 1000;
-  const CHEKI_PRICE = 80;
-  const TICKET_PRICE = 50; 
-  const VERSION = "v1.1.0-STABLE";
-
-  const handleShare = async () => {
-    // 自动探测当前部署后的链接
-    const currentUrl = window.location.origin + window.location.pathname;
-    const shareText = `🎮 【地偶阿宅模拟器】战报
---------------------------
-📅 进度：第 ${gameState.week} 周
-❤️ 对 ${IDOL_NAME} 的爱意：${gameState.love}
-💰 剩余资产：$${gameState.money}
-🧠 理智值：${gameState.san}%
---------------------------
-“只要梦梦还在舞台上发光，我的搬砖就有意义！✨”
-🔗 立即应援：${currentUrl}`;
-
-    // 尝试调用手机原生分享，失败则降级为复制剪贴板
-    if (navigator.share && /mobile/i.test(navigator.userAgent)) {
-      try {
-        await navigator.share({
-          title: '地偶阿宅模拟器战报',
-          text: shareText,
-          url: currentUrl,
-        });
-      } catch (err) {
-        copyToClipboard(shareText);
-      }
-    } else {
-      copyToClipboard(shareText);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
-    });
-  };
-
-  const getIdolImage = () => {
-    const seeds = {
-      NORMAL: 'yume-v5-soft',
-      HAPPY: 'yume-v5-dreamy',
-      BLUSH: 'yume-v5-love-pixel'
-    };
-    let seed = seeds.NORMAL;
-    if (gameState.love >= 120) seed = seeds.BLUSH;
-    else if (gameState.love >= 50) seed = seeds.HAPPY;
-    return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&backgroundColor=ffdfed`;
-  };
-
-  const handleWork = () => {
-    setGameState(prev => ({
-      ...prev,
-      money: prev.money + WAGE,
-      san: Math.max(0, prev.san - 20),
-      turnState: 'RESULT',
-      lastChekiSeeds: [],
-      lastLog: `在便利店搬了一整天货。虽然被店长训了，但想到周末能见到梦梦，一切都值得了！\n\n💸 MONEY +${WAGE}\n💀 SAN -20`
-    }));
-  };
-
-  const handleInternet = () => {
-    setGameState(prev => ({
-      ...prev,
-      san: Math.min(100, prev.san + 25),
-      turnState: 'RESULT',
-      lastChekiSeeds: [],
-      lastLog: `在家剪辑梦梦的 Live 切片。看着满屏的“草”和应援弹幕，心情也跟着好了起来。\n\n✨ SAN +25`
-    }));
-  };
-
-  const handleLive = () => {
-    if (gameState.money < TICKET_PRICE) {
-      alert(`糟糕！连门票钱都凑不齐。果然爱也需要物质基础啊...`);
-      return;
-    }
-    setGameState(prev => ({
-      ...prev,
-      money: prev.money - TICKET_PRICE,
-      turnState: 'LIVE_INTERACTION',
-      lastLog: `随着序曲响起，现场的荧光棒瞬间被点亮。梦梦从雾气中跃出，那一刻她是世界的核心！`
-    }));
-  };
-
-  const handleBuyCheki = (count: number) => {
-    const totalCost = CHEKI_PRICE * count;
-    if (gameState.money < totalCost) return;
-
-    const loveGain = (count * 15) + (count >= 10 ? 30 : 5);
-    const sanGain = 15 + (count * 4);
-    const newSeeds = Array.from({ length: count }, (_, i) => `aesthetic-cheki-${Math.random()}-${i}`);
-
-    setGameState(prev => ({
-      ...prev,
-      money: prev.money - totalCost,
-      love: prev.love + loveGain,
-      san: Math.min(100, prev.san + sanGain),
-      turnState: 'RESULT',
-      lastChekiSeeds: newSeeds,
-      lastLog: count === 0 
-        ? "只敢远远地看着她，没有勇气去排队拍合影。心里有点酸溜溜的。"
-        : `【特典会】\n一共拍了 ${count} 张切琪！梦梦在最后一张上写了“我们要一直在一起哦”，并给了你一个灿烂的笑容。\n\n💸 MONEY -${totalCost}\n❤️ LOVE +${loveGain}\n✨ SAN +${sanGain}`
-    }));
-  };
-
-  const handleStayHome = () => {
-    setGameState(prev => ({
-      ...prev,
-      san: Math.min(100, prev.san + 15),
-      turnState: 'RESULT',
-      lastChekiSeeds: [],
-      lastLog: `这周末决定休息一下。在床上刷着现场的实时推文，感觉自己像个脱节的逃兵。`
-    }));
-  };
-
-  const handleNextPhase = () => {
-    if (gameState.cyclePhase === 'WEEKEND') {
-      setShowWeekSplash(true);
-      setTimeout(() => {
-        setGameState(prev => ({
-          ...prev,
-          week: prev.week + 1,
-          cyclePhase: 'WEEKDAY',
-          turnState: 'DECISION',
-          lastChekiSeeds: [],
-          lastLog: `第 ${prev.week + 1} 周。窗外的阳光洒进房间，今天也是元气满满的阿宅生活！`
-        }));
-        setShowWeekSplash(false);
-      }, 1500);
-    } else {
-      setGameState(prev => ({
-        ...prev,
-        cyclePhase: 'WEEKEND',
+    // 初始状态
+    const [setupStage, setSetupStage] = useState<SetupStage>('ATTR'); 
+    const [pointsLeft, setPointsLeft] = useState(10); // 10点总数
+    const [attr, setAttr] = useState<AttrState>({ looks: 0, wealth: 0, sanity: 0 }); // 初始0
+    const [playerName, setPlayerName] = useState('');
+    
+    const [gameState, setGameState] = useState<GameState>({
+        money: 3000,
+        san: 100,
+        week: 1,
+        cyclePhase: 'WEEKDAY',
         turnState: 'DECISION',
-        lastChekiSeeds: [],
-        lastLog: "周六到了！空气中弥漫着 Live House 特有的那种期待感。"
-      }));
-    }
-  };
+        lastLog: "新的一周开始了，阳光正好。\n今天也要为了梦想努力！",
+        pushedIdols: [], 
+        weeklyStats: { moneyEarned: 0, moneySpent: 0, sanLost: 0, loveGained: 0 }
+    });
 
-  return (
-    <div className="min-h-screen bg-[#080808] flex flex-col max-w-md mx-auto relative overflow-hidden text-black font-bold border-x-8 border-gray-900 shadow-2xl">
-      
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[200] bg-yellow-400 text-black px-6 py-3 pixel-border shadow-xl animate-in slide-in-from-top-4 duration-300">
-           <div className="flex flex-col items-center gap-1">
-             <span className="text-[10px] font-pixel tracking-widest">SUCCESS!</span>
-             <span className="text-xs">战报已复制 📢</span>
-           </div>
-        </div>
-      )}
+    const [chekiQueue, setChekiQueue] = useState<Cheki[]>([]);
+    const [currentCheki, setCurrentCheki] = useState<Cheki | null>(null);
+    const [chekiCounts, setChekiCounts] = useState<Record<string, number>>({});
+    const [aiThinking, setAiThinking] = useState(false);
 
-      {showWeekSplash && (
-        <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center text-white">
-           <div className="animate-week text-center px-6">
-              <p className="text-xs text-pink-500 mb-2 font-pixel tracking-[0.5em] animate-pulse">SYSTEM_REBOOTING</p>
-              <h2 className="text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500">WEEK {gameState.week + 1}</h2>
-              <div className="mt-12 flex justify-center items-center gap-4">
-                <div className="w-2 h-2 bg-pink-600 animate-ping"></div>
-                <div className="w-2 h-2 bg-blue-600 animate-ping delay-75"></div>
-                <div className="w-2 h-2 bg-white animate-ping delay-150"></div>
-              </div>
-           </div>
-        </div>
-      )}
+    // AI 周报生成 (极速版：简化 prompt 减少延迟)
+    const generateWeeklyDiary = async () => {
+      setAiThinking(true);
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const idol = gameState.pushedIdols[0];
+        // 简化 prompt，移除多余要求
+        const prompt = `以地下偶像粉丝视角写一句周记(20字内)。推：${idol?.name}。状态：甜蜜。`;
 
-      {/* Header Bar */}
-      <header className="bg-[#111] text-white p-3 border-b-4 border-pink-600 grid grid-cols-4 gap-1 relative z-10 shadow-lg">
-        <div className="flex flex-col items-center border-r border-gray-800">
-           <span className="text-[7px] text-gray-500 font-pixel uppercase">Wk</span>
-           <span className="text-lg italic leading-none mt-1">{gameState.week}</span>
-        </div>
-        <div className="flex flex-col items-center border-r border-gray-800">
-           <span className="text-[7px] text-green-500 font-pixel uppercase">Cash</span>
-           <span className="text-lg text-green-400 leading-none mt-1">${gameState.money}</span>
-        </div>
-        <div className="flex flex-col items-center border-r border-gray-800">
-           <span className="text-[7px] text-blue-500 font-pixel uppercase">San</span>
-           <span className="text-lg text-blue-300 leading-none mt-1">{gameState.san}%</span>
-        </div>
-        <div className="flex items-center justify-center">
-           <button 
-             onClick={handleShare}
-             className="bg-pink-600 hover:bg-pink-500 p-2.5 pixel-border-sm text-white transition-all active:scale-90 active:translate-y-0.5"
-             title="分享战报"
-           >
-             <ShareIcon className="w-4 h-4" />
-           </button>
-        </div>
-      </header>
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt,
+        });
+        return response.text || "看到她的笑容，我也获得了力量。";
+      } catch (e) {
+        return "不管生活多难，只要看到她的笑容，一切烦恼都烟消云散了。";
+      } finally {
+        setAiThinking(false);
+      }
+    };
 
-      {/* Profile Bar */}
-      <div className="bg-white border-b-4 border-black p-3 flex items-center space-x-3 z-10">
-        <div className="pixel-border-sm bg-pink-50 p-1 flex-shrink-0">
-          <img 
-            src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=yume-static-final&backgroundColor=ffdfed`} 
-            className="w-10 h-10" 
-            alt="Idol"
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className="text-[7px] bg-pink-500 text-white px-1.5 py-0.5 font-pixel leading-none">LV.{Math.floor(gameState.love / 100) + 1}</div>
-            <div className="text-[7px] border border-black text-black px-1 font-pixel leading-none uppercase">Dreaming</div>
-          </div>
-          <h1 className="text-sm leading-none tracking-tight font-black truncate">{IDOL_NAME}</h1>
-        </div>
-        <div className="pixel-border-sm bg-black text-pink-500 px-2 py-1 flex flex-col items-center min-w-[60px] flex-shrink-0">
-           <span className="text-[6px] font-pixel leading-none">AFFECTION</span>
-           <span className="text-lg leading-none italic mt-0.5">{gameState.love}</span>
-        </div>
-      </div>
+    const modifyAttr = (key: keyof AttrState, delta: number) => {
+        if (delta > 0 && pointsLeft > 0) {
+            setAttr(prev => ({ ...prev, [key]: prev[key] + 1 }));
+            setPointsLeft(p => p - 1);
+        } else if (delta < 0 && attr[key] > 0) {
+            setAttr(prev => ({ ...prev, [key]: prev[key] - 1 }));
+            setPointsLeft(p => p + 1);
+        }
+    };
 
-      <main className="flex-1 p-4 flex flex-col items-center bg-[#181818] relative overflow-y-auto overflow-x-hidden">
-        
-        {/* Visual Content Area */}
-        <div className="w-full min-h-[300px] flex flex-col items-center justify-center mb-4 relative py-4">
-          {gameState.lastChekiSeeds && gameState.lastChekiSeeds.length > 0 && gameState.turnState === 'RESULT' ? (
-            <div className="relative w-full flex flex-wrap justify-center gap-2 px-2 animate-in fade-in zoom-in duration-700">
-              {gameState.lastChekiSeeds.slice(0, 16).map((seed, idx) => (
-                <div 
-                  key={idx}
-                  className="bg-white p-1.5 pb-6 pixel-border-sm shadow-[0_15px_40px_rgba(0,0,0,0.6)] transition-all hover:scale-125 hover:z-[60] cursor-pointer"
-                  style={{ 
-                    transform: `rotate(${(idx % 2 === 0 ? 1 : -1) * (15 + Math.random() * 25)}deg) translate(${Math.random() * 24 - 12}px, ${Math.random() * 24 - 12}px)`,
-                    width: gameState.lastChekiSeeds!.length > 4 ? '68px' : '150px'
-                  }}
-                >
-                  <div className="bg-gray-100 aspect-square overflow-hidden border border-gray-200">
-                    <img 
-                      src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}&backgroundColor=${['ffddee', 'e0f7fa', 'f3e5f5'][idx % 3]}`} 
-                      className="w-full h-full object-cover"
-                      alt={`Cheki`}
-                    />
-                  </div>
-                  <div className="mt-2 text-[5px] text-pink-500 font-mono italic text-center opacity-50 uppercase">
-                    Memories
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="w-full aspect-square pixel-border bg-black relative overflow-hidden group shadow-2xl">
-               <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px]"></div>
-               <img 
-                  src={getIdolImage()} 
-                  className={`w-full h-full object-cover transition-all duration-1000 ${gameState.turnState !== 'RESULT' ? 'blur-2xl brightness-50 scale-150' : 'scale-100'}`} 
-                  alt="Idol Main"
-               />
-               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-               <div className="absolute bottom-4 left-4 flex flex-col gap-1">
-                 <div className="bg-pink-600 text-white px-2 py-0.5 text-[7px] border border-white pixel-border-sm uppercase font-pixel tracking-tighter">
-                   STATUS: {gameState.cyclePhase}
-                 </div>
-                 {gameState.turnState !== 'RESULT' && (
-                   <div className="text-white/40 text-[6px] font-pixel tracking-widest animate-pulse uppercase">Waiting for input...</div>
-                 )}
-               </div>
-            </div>
-          )}
-        </div>
+    const startGame = () => {
+        if (gameState.pushedIdols.length === 0) return;
+        setPlayerName(playerName.trim() || '阿宅');
+        setSetupStage('GAME');
+    };
 
-        {/* Message Box */}
-        <div className="w-full bg-white pixel-border p-5 min-h-[160px] flex flex-col items-center justify-center text-center relative mt-auto mb-2 shadow-inner">
-           <div className="absolute -top-3 left-4 bg-black text-white px-3 py-1 text-[7px] tracking-[0.3em] uppercase font-pixel border border-white">Story_Feed</div>
-           <p className="text-xs sm:text-[14px] leading-relaxed whitespace-pre-line font-black text-gray-800 tracking-tight">
-             {gameState.lastLog}
-           </p>
-           
-           {gameState.turnState === 'RESULT' && (
-             <button 
-                onClick={handleNextPhase}
-                className="mt-6 bg-yellow-400 hover:bg-yellow-300 pixel-border pixel-button px-14 py-3 text-xs flex items-center gap-3 group transition-all"
-             >
-                <span className="tracking-[0.3em]">{gameState.cyclePhase === 'WEEKEND' ? 'NEXT WEEK' : 'CONTINUE'}</span>
-                <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-             </button>
-           )}
-        </div>
+    const handleWork = () => {
+        const wage = 1000 + (attr.wealth * 300);
+        const loss = Math.max(10, 25 - (attr.sanity * 2));
+        setGameState(prev => ({
+            ...prev,
+            money: prev.money + wage,
+            san: Math.max(0, prev.san - loss),
+            turnState: 'RESULT',
+            lastLog: `为了给她买更多周边，今天也加油搬砖了！\n(体力 -${loss}, 钱包 +¥${wage})`,
+            weeklyStats: { ...prev.weeklyStats, moneyEarned: prev.weeklyStats.moneyEarned + wage, sanLost: prev.weeklyStats.sanLost + loss }
+        }));
+    };
 
-        {/* Footer */}
-        <footer className="w-full flex justify-between items-center px-1 mt-2 text-[7px] text-gray-600 font-pixel opacity-50 uppercase tracking-tighter">
-           <span>{VERSION}</span>
-           <span className="flex items-center gap-1">Produced by <HeartIcon className="w-2 h-2 text-pink-600 inline" /> Creator</span>
-        </footer>
-      </main>
+    const handleInternet = () => {
+        const gain = 20 + (attr.sanity * 3);
+        setGameState(prev => ({
+            ...prev,
+            san: Math.min(100, prev.san + gain),
+            turnState: 'RESULT',
+            lastLog: `在家里刷了一整天 ${gameState.pushedIdols[0].name} 的视频，HP全满了！\n(精神值 +${gain})`,
+            weeklyStats: { ...prev.weeklyStats, sanLost: prev.weeklyStats.sanLost - gain }
+        }));
+    };
 
-      {/* Action Dialog */}
-      {(gameState.turnState === 'DECISION' || gameState.turnState === 'LIVE_INTERACTION') && (
-        <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-xl p-6 flex items-center justify-center animate-in fade-in duration-500">
-          <div className="bg-white pixel-border w-full max-w-sm overflow-hidden animate-in slide-in-from-bottom-24 duration-700 shadow-[0_0_60px_rgba(255,105,180,0.2)]">
-            <div className={`p-4 text-white text-center text-xs tracking-[0.5em] font-black uppercase ${gameState.turnState === 'LIVE_INTERACTION' ? 'bg-gradient-to-r from-pink-600 to-rose-600' : (gameState.cyclePhase === 'WEEKDAY' ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-purple-600 to-fuchsia-600')}`}>
-              {gameState.turnState === 'LIVE_INTERACTION' ? '::: 物贩特典会 :::' : (gameState.cyclePhase === 'WEEKDAY' ? '::: 日常抉择 :::' : '::: 周末公演 :::')}
-            </div>
-            
-            <div className="p-6 space-y-4 bg-gray-50/50">
-              {gameState.turnState === 'LIVE_INTERACTION' ? (
-                <>
-                  <button onClick={() => handleBuyCheki(1)} className="w-full pixel-border-sm bg-white p-4 flex justify-between items-center group active:scale-95 transition-transform hover:border-pink-500">
-                    <span className="flex items-center text-xs"><CameraIcon className="w-4 h-4 mr-4 text-pink-500" />单张合影切琪</span>
-                    <span className="text-red-600 text-[10px] font-pixel">-$80</span>
-                  </button>
-                  <button onClick={() => handleBuyCheki(10)} className="w-full pixel-border-sm bg-pink-50 p-4 flex justify-between items-center group active:scale-95 transition-transform border-pink-300 hover:bg-pink-100">
-                    <span className="flex items-center text-xs"><SparklesIcon className="w-4 h-4 mr-4 text-purple-600 animate-pulse" />霸气十连拍!</span>
-                    <span className="text-red-600 text-[10px] font-pixel">-$800</span>
-                  </button>
-                  <button onClick={() => handleBuyCheki(0)} className="w-full text-gray-400 py-2 text-[9px] hover:text-pink-600 transition-colors uppercase font-pixel tracking-[0.4em] text-center">
-                    [ 结束并离开 / LEAVE ]
-                  </button>
-                </>
-              ) : (
-                gameState.cyclePhase === 'WEEKDAY' ? (
-                  <>
-                    <button onClick={handleWork} className="w-full pixel-border-sm bg-white p-4 flex justify-between items-center group active:scale-95 transition-transform border-green-200 hover:bg-green-50">
-                      <span className="flex items-center text-xs"><BriefcaseIcon className="w-4 h-4 mr-4 text-green-600" />便利店夜班打工</span>
-                      <span className="text-green-700 text-[10px] font-pixel">+$1000</span>
-                    </button>
-                    <button onClick={handleInternet} className="w-full pixel-border-sm bg-white p-4 flex justify-between items-center group active:scale-95 transition-transform border-blue-200 hover:bg-blue-50">
-                      <span className="flex items-center text-xs"><ComputerDesktopIcon className="w-4 h-4 mr-4 text-blue-500" />网络应援(推特/B站)</span>
-                      <span className="text-blue-600 text-[10px] font-pixel uppercase tracking-tighter">Sanity++</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
+    const handleLive = () => {
+        if (gameState.money < 500) return;
+        setGameState(prev => ({
+            ...prev,
+            money: prev.money - 500,
+            turnState: 'LIVE_INTERACTION',
+            lastLog: `LIVE现场的热度太棒了！她在舞台上闪闪发光的样子，我也想拼命为她应援！`,
+            weeklyStats: { ...prev.weeklyStats, moneySpent: prev.weeklyStats.moneySpent + 500 }
+        }));
+    };
+
+    const startChekiSession = () => {
+        const idol = gameState.pushedIdols[0];
+        const count = chekiCounts[idol.id] || 0;
+        if (count === 0) {
+            setGameState(prev => ({ ...prev, turnState: 'RESULT', lastLog: "虽然没拍合照，但能看到她的笑容就很满足了。" }));
+            return;
+        }
+
+        const totalCost = count * 200;
+        if (gameState.money < totalCost) return;
+
+        const newQueue: Cheki[] = [];
+        for (let i = 0; i < count; i++) {
+            const dialogue = idol.dialogues[Math.floor(Math.random() * idol.dialogues.length)];
+            const img = idol.chekiUrls[Math.floor(Math.random() * idol.chekiUrls.length)];
+            newQueue.push({
+                id: Math.random(),
+                idol: idol,
+                imageUrl: img,
+                dialogue: dialogue,
+                date: `W${gameState.week}.Love`,
+                decorations: Array.from({length: 3}).map(() => ({
+                    emoji: STICKERS[Math.floor(Math.random() * STICKERS.length)],
+                    left: Math.random() * 70 + 10,
+                    top: Math.random() * 70 + 10,
+                    rotate: Math.random() * 60 - 30,
+                    scale: 1.2
+                })),
+                rotation: Math.random() * 10 - 5
+            });
+        }
+
+        setGameState(prev => ({
+            ...prev,
+            money: prev.money - totalCost,
+            turnState: 'REVEAL',
+            weeklyStats: { ...prev.weeklyStats, moneySpent: prev.weeklyStats.moneySpent + totalCost, loveGained: prev.weeklyStats.loveGained + (count * 20) }
+        }));
+        setChekiQueue(newQueue);
+        setChekiCounts({});
+    };
+
+    const revealNext = () => {
+        if (chekiQueue.length > 0) {
+            const [next, ...rest] = chekiQueue;
+            setCurrentCheki(next);
+            setChekiQueue(rest);
+        } else {
+            setCurrentCheki(null);
+            setGameState(prev => ({ ...prev, turnState: 'RESULT', lastLog: "每一张拍立得，都是只属于我们的宝物..." }));
+        }
+    };
+
+    const handleNextPhase = async () => {
+        if (gameState.cyclePhase === 'WEEKEND') {
+            const diary = await generateWeeklyDiary();
+            setGameState(prev => ({ ...prev, turnState: 'REPORT', lastLog: diary }));
+        } else {
+            setGameState(prev => ({ ...prev, cyclePhase: 'WEEKEND', turnState: 'DECISION', lastLog: "周末来了，LIVE现场见！" }));
+        }
+    };
+
+    const startNewWeek = () => {
+        setGameState(prev => ({
+            ...prev,
+            week: prev.week + 1,
+            cyclePhase: 'WEEKDAY',
+            turnState: 'DECISION',
+            lastLog: `第 ${prev.week + 1} 周，向着幸福出发！`,
+            weeklyStats: { moneyEarned: 0, moneySpent: 0, sanLost: 0, loveGained: 0 }
+        }));
+    };
+
+    // =================================================================================
+    // 🖥️ UI 渲染
+    // =================================================================================
+
+    if (setupStage === 'ATTR') {
+        return (
+            <div className="min-h-screen bg-gradient-soft flex items-center justify-center p-6 font-sans">
+                <GlobalStyles />
+                <div className="w-full max-w-sm glass-card rounded-[2.5rem] p-8 animate-in fade-in zoom-in duration-500">
+                    <div className="text-center mb-10">
+                        <div className="w-16 h-16 bg-pink-100 rounded-3xl mx-auto mb-4 flex items-center justify-center animate-floating shadow-sm">
+                            <HeartIcon className="w-8 h-8 text-pink-400" />
+                        </div>
+                        <h1 className="text-3xl font-black text-pink-500 tracking-tight">阿宅觉醒</h1>
+                        <p className="text-xs text-slate-400 mt-1 uppercase font-bold tracking-widest">IDOL FAN STARTUP</p>
+                    </div>
+
+                    <div className="mb-8">
+                        <input 
+                            type="text" 
+                            placeholder="给你的角色起个名字..." 
+                            value={playerName} 
+                            onChange={(e) => setPlayerName(e.target.value)} 
+                            className="w-full bg-white/50 border-2 border-pink-50 rounded-2xl px-5 py-4 text-slate-700 focus:outline-none focus:border-pink-200 transition-all placeholder:text-slate-300 font-bold"
+                        />
+                    </div>
+
+                    <div className="space-y-6 mb-10">
+                        <div className="flex justify-between items-center bg-pink-50/50 px-5 py-3 rounded-2xl border border-pink-100/50">
+                            <span className="text-sm font-black text-pink-400">可用点数</span>
+                            <span className="text-xl font-black text-pink-500">{pointsLeft}</span>
+                        </div>
+                        
+                        {[
+                            {k:'looks', l:'外貌', d:'现场互动的魅力'}, 
+                            {k:'wealth', l:'财力', d:'打工收益加成'}, 
+                            {k:'sanity', l:'精神', d:'工作压力抗性'}
+                        ].map(item => (
+                            <div key={item.k} className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <div className="text-sm font-black text-slate-600">{item.l}</div>
+                                    <div className="text-[10px] text-slate-400">{item.d}</div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => modifyAttr(item.k as keyof AttrState, -1)} className="w-8 h-8 rounded-full bg-white border border-pink-100 text-pink-300 font-black hover:bg-pink-50">-</button>
+                                    <span className="w-4 text-center font-black text-slate-700">{attr[item.k as keyof AttrState]}</span>
+                                    <button onClick={() => modifyAttr(item.k as keyof AttrState, 1)} className="w-8 h-8 rounded-full bg-white border border-pink-100 text-pink-400 font-black hover:bg-pink-50">+</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
                     <button 
-                      onClick={handleLive} 
-                      disabled={gameState.money < TICKET_PRICE}
-                      className={`w-full pixel-border-sm p-4 flex justify-between items-center group active:scale-95 transition-transform ${gameState.money < TICKET_PRICE ? 'bg-gray-200 opacity-60 cursor-not-allowed' : 'bg-pink-100 border-pink-200 hover:bg-pink-200'}`}
+                        onClick={() => pointsLeft === 0 && setSetupStage('IDOL')} 
+                        disabled={pointsLeft > 0}
+                        className={`w-full py-5 rounded-[1.5rem] font-black tracking-widest uppercase transition-all shadow-lg ${pointsLeft === 0 ? 'btn-sweet' : 'bg-slate-100 text-slate-300 border-b-4 border-slate-200 cursor-not-allowed'}`}
                     >
-                      <span className="flex items-center text-xs"><TicketIcon className="w-4 h-4 mr-4 text-pink-500" />入场支持现场演出</span>
-                      <span className="text-red-600 text-[10px] font-pixel">-$50</span>
+                        开启追星之旅
                     </button>
-                    <button onClick={handleStayHome} className="w-full pixel-border-sm bg-white p-4 flex justify-between items-center group active:scale-95 transition-transform border-gray-200 hover:bg-gray-50">
-                      <span className="flex items-center text-xs font-pixel text-gray-400 tracking-tighter uppercase">Home & Chill</span>
-                      <span className="text-[10px] text-gray-300 uppercase italic">Saving</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (setupStage === 'IDOL') {
+        return (
+            <div className="min-h-screen bg-gradient-soft flex items-center justify-center p-6">
+                <GlobalStyles />
+                <div className="w-full max-w-md">
+                    <h2 className="text-center mb-8 text-2xl font-black text-pink-500">选择要守护的偶像 ✨</h2>
+                    <div className="space-y-6 mb-8">
+                        {PRESET_IDOLS.map((idol) => {
+                            const isSelected = gameState.pushedIdols.find(i => i.id === idol.id);
+                            return (
+                                <div 
+                                    key={idol.id} 
+                                    onClick={() => setGameState(p => ({...p, pushedIdols: [idol]}))} 
+                                    className={`glass-card p-5 rounded-[2rem] flex items-center gap-5 cursor-pointer transition-all border-4 ${isSelected ? 'border-pink-300 bg-pink-50/50 scale-[1.02]' : 'border-white opacity-80 hover:opacity-100'}`}
+                                >
+                                    <div className="w-20 h-20 bg-white rounded-2xl overflow-hidden shadow-sm border-2 border-white flex-shrink-0">
+                                        <img src={idol.avatarUrl} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="font-black text-slate-700 text-lg">{idol.name}</h3>
+                                            <span className="text-[9px] px-2 py-0.5 bg-pink-100 text-pink-500 rounded-full font-bold">{idol.styleTag}</span>
+                                        </div>
+                                        <p className="text-xs text-slate-400 leading-tight">{idol.description}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <button 
+                        onClick={startGame} 
+                        className={`w-full py-5 rounded-[1.5rem] font-black tracking-widest uppercase transition-all shadow-lg ${gameState.pushedIdols.length > 0 ? 'btn-sweet' : 'bg-slate-100 text-slate-300 border-b-4 border-slate-200 cursor-not-allowed'}`}
+                    >
+                        就决定是你了！
                     </button>
-                  </>
-                )
-              )}
+                </div>
             </div>
-            <div className="bg-black py-2.5 text-center">
-               <span className="text-[7px] text-gray-600 font-pixel tracking-[0.8em] uppercase">Control System Alpha</span>
-            </div>
-          </div>
+        );
+    }
+
+    const mainIdol = gameState.pushedIdols[0];
+    
+    return (
+        <div className="min-h-screen bg-gradient-soft flex flex-col max-w-md mx-auto relative border-x border-white shadow-2xl font-sans text-slate-600">
+            <GlobalStyles />
+            
+            {/* 顶栏 */}
+            <header className="bg-white/80 backdrop-blur-md p-5 flex items-center justify-between sticky top-0 z-30 border-b border-pink-50">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-pink-100 rounded-2xl flex items-center justify-center text-pink-500 font-black shadow-inner">
+                        {playerName[0]}
+                    </div>
+                    <div>
+                        <div className="text-[10px] text-pink-300 font-bold uppercase">Producers</div>
+                        <div className="text-sm font-black text-slate-700">{playerName}</div>
+                    </div>
+                </div>
+                <div className="flex gap-4">
+                    <div className="text-right">
+                        <div className="text-[9px] text-slate-400 font-bold uppercase">Funds</div>
+                        <div className="font-black text-emerald-400">¥{gameState.money}</div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-[9px] text-slate-400 font-bold uppercase">Week</div>
+                        <div className="font-black text-pink-400">{gameState.week}</div>
+                    </div>
+                </div>
+            </header>
+
+            {/* 内容区 */}
+            <main className="flex-1 flex flex-col p-6">
+                <div className="glass-card p-5 rounded-3xl mb-6 relative overflow-hidden min-h-[90px] flex items-center justify-center text-center">
+                    <div className="shimmer-light absolute inset-0 opacity-10 pointer-events-none"></div>
+                    <div className="text-sm font-bold text-slate-500 italic leading-relaxed">
+                        {aiThinking ? <span className="animate-pulse text-pink-400">正在回味我们的点滴...</span> : `"${gameState.lastLog}"`}
+                    </div>
+                </div>
+
+                {gameState.turnState === 'RESULT' && (
+                    <button onClick={handleNextPhase} className="self-center mb-6 px-10 py-2 bg-pink-400 text-white rounded-full font-black text-xs shadow-md hover:bg-pink-500 transition-all animate-bounce">
+                        继续前进 ✨
+                    </button>
+                )}
+
+                <div className="flex-1 flex flex-col items-center justify-center py-4">
+                    <div className="relative w-full aspect-[4/5] max-h-[45vh] bg-white rounded-[2.5rem] p-3 shadow-2xl border-8 border-white animate-floating overflow-hidden">
+                        <img src={mainIdol.avatarUrl} className="w-full h-full object-cover rounded-[2rem]" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-pink-50/30 to-transparent"></div>
+                        
+                        <div className="absolute bottom-6 left-6 right-6">
+                            <div className="bg-white/90 p-4 rounded-3xl border border-pink-50 shadow-sm">
+                                <h2 className="text-xl font-black text-pink-500 mb-1">{mainIdol.name}</h2>
+                                <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
+                                    <span className="flex items-center gap-1"><HeartIcon className="w-3 h-3 text-pink-300"/> 好感 {mainIdol.love}</span>
+                                    <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                    <span className="flex items-center gap-1"><MusicalNoteIcon className="w-3 h-3 text-blue-300"/> {gameState.cyclePhase === 'WEEKDAY' ? '平日应援' : '现场狂欢'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            {/* 操作板 */}
+            {gameState.turnState === 'DECISION' && (
+                <div className="bg-white/90 backdrop-blur p-8 rounded-t-[3rem] shadow-[0_-15px_40px_rgba(255,182,193,0.1)] border-t border-pink-50 z-20">
+                    <div className="grid grid-cols-2 gap-5">
+                        {gameState.cyclePhase === 'WEEKDAY' ? (
+                            <>
+                                <button onClick={handleWork} className="group p-5 rounded-3xl bg-emerald-50/50 border-2 border-transparent hover:border-emerald-100 transition-all flex flex-col items-center gap-3">
+                                    <div className="p-3 bg-white rounded-2xl group-hover:scale-110 transition-transform shadow-sm"><BriefcaseIcon className="w-7 h-7 text-emerald-400" /></div>
+                                    <span className="text-sm font-black text-emerald-600">搬砖赚钱</span>
+                                </button>
+                                <button onClick={handleInternet} className="group p-5 rounded-3xl bg-sky-50/50 border-2 border-transparent hover:border-sky-100 transition-all flex flex-col items-center gap-3">
+                                    <div className="p-3 bg-white rounded-2xl group-hover:scale-110 transition-transform shadow-sm"><SparklesIcon className="w-7 h-7 text-sky-400" /></div>
+                                    <span className="text-sm font-black text-sky-600">云推治愈</span>
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={handleLive} className={`col-span-2 p-6 rounded-3xl border-2 flex items-center justify-between group shadow-sm transition-all ${gameState.money >= 500 ? 'border-pink-100 bg-white hover:bg-pink-50' : 'bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed'}`}>
+                                    <div className="flex items-center gap-5">
+                                        <div className="p-4 bg-pink-100 rounded-2xl"><CameraIcon className="w-7 h-7 text-pink-500" /></div>
+                                        <div className="text-left">
+                                            <div className="font-black text-slate-700 text-lg">奔向 LIVE 现场</div>
+                                            <div className="text-xs text-pink-300 font-bold">她正在舞台上等你 ✨</div>
+                                        </div>
+                                    </div>
+                                    <div className="font-black text-pink-500 bg-white px-3 py-1 rounded-full border border-pink-100 shadow-sm">-¥500</div>
+                                </button>
+                                <button onClick={() => setGameState(p => ({...p, turnState:'RESULT', lastLog:"今天就在家里静静地听她的歌，享受片刻宁静。"}))} className="col-span-2 py-4 text-slate-300 text-[10px] font-black tracking-widest uppercase hover:text-pink-300 transition-colors">
+                                    宅家休息
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 物贩环节 (特典) */}
+            {gameState.turnState === 'LIVE_INTERACTION' && (
+                <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md flex items-center justify-center p-8">
+                    <div className="w-full glass-card p-8 rounded-[3rem] shadow-2xl relative overflow-hidden border-4 border-white">
+                        <div className="h-1.5 w-full absolute top-0 left-0 bg-pink-300"></div>
+                        <h3 className="text-center font-black text-2xl mb-2 text-pink-500 tracking-tight">特典时刻</h3>
+                        <p className="text-center text-slate-400 text-[10px] mb-8 font-bold">每一张拍立得都是心跳的回忆 (¥200)</p>
+                        
+                        <div className="bg-white/60 p-5 rounded-3xl border border-pink-50 mb-8">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <img src={mainIdol.avatarUrl} className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-sm" />
+                                    <span className="font-black text-slate-700">{mainIdol.name}</span>
+                                </div>
+                                <div className="flex items-center gap-4 bg-white rounded-2xl px-4 py-2 shadow-inner border border-pink-50">
+                                    <button onClick={() => setChekiCounts(c => ({...c, [mainIdol.id]: Math.max(0, (c[mainIdol.id]||0) - 1)}))} className="text-pink-300 hover:text-pink-500 font-black text-2xl">－</button>
+                                    <span className="w-6 text-center font-black text-pink-500 text-lg">{chekiCounts[mainIdol.id] || 0}</span>
+                                    <button onClick={() => setChekiCounts(c => ({...c, [mainIdol.id]: (c[mainIdol.id]||0) + 1}))} className="text-pink-400 hover:text-pink-600 font-black text-2xl">＋</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center mb-8 px-5">
+                            <span className="text-sm text-slate-400 font-black">预计消费</span>
+                            <span className="text-3xl font-black text-pink-500">¥{Object.keys(chekiCounts).reduce((sum, key) => sum + (chekiCounts[key] || 0), 0) * 200}</span>
+                        </div>
+
+                        <button onClick={startChekiSession} className="w-full btn-sweet py-5 rounded-3xl font-black shadow-lg text-lg tracking-widest">
+                            预约合照
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 拍立得显影 (显像中) */}
+            {(gameState.turnState === 'REVEAL' && currentCheki) || (gameState.turnState === 'REVEAL' && chekiQueue.length > 0 && !currentCheki) ? (
+                <div 
+                    className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-6 cursor-pointer" 
+                    style={{ background: 'rgba(255, 248, 250, 0.98)' }}
+                    onClick={() => !currentCheki && revealNext()}
+                >
+                    {!currentCheki ? (
+                        <div className="text-center animate-in zoom-in duration-500">
+                            <div className="w-24 h-24 bg-pink-100 rounded-full flex items-center justify-center mb-6 mx-auto shadow-sm animate-floating">
+                                <ChatBubbleLeftRightIcon className="w-12 h-12 text-pink-400" />
+                            </div>
+                            <h4 className="text-pink-500 text-2xl font-black tracking-tight mb-2">正在冲印甜蜜时刻...</h4>
+                            <p className="text-slate-300 text-xs font-bold uppercase tracking-widest">Memories are blooming</p>
+                            <div className="mt-12 text-pink-200 text-xs font-bold animate-pulse">点击屏幕继续</div>
+                        </div>
+                    ) : (
+                        <div className="relative w-full h-full flex flex-col items-center justify-center" onClick={revealNext}>
+                            <div 
+                                className="relative bg-white p-5 pb-20 shadow-2xl rounded-sm animate-in zoom-in duration-500"
+                                style={{ transform: `rotate(${currentCheki.rotation}deg)` }}
+                            >
+                                <div className="aspect-[3/4] w-[280px] bg-slate-100 overflow-hidden relative border-2 border-slate-50 rounded-sm">
+                                    <img src={currentCheki.imageUrl} className="w-full h-full object-cover saturate-125" />
+                                    <div className="absolute inset-0 bg-pink-400/5 mix-blend-overlay"></div>
+                                </div>
+
+                                <div className="absolute bottom-6 left-0 right-0 px-8">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="text-[10px] text-pink-200 font-bold scribble-font">{currentCheki.date}</span>
+                                        <HeartIcon className="w-5 h-5 text-pink-300" />
+                                    </div>
+                                    <p className="text-xl text-pink-500 font-black scribble-font leading-tight text-center tracking-tight">
+                                        {currentCheki.dialogue}
+                                    </p>
+                                </div>
+
+                                {currentCheki.decorations.map((deco, idx) => (
+                                    <div key={idx} className="absolute text-4xl select-none" style={{ left: `${deco.left}%`, top: `${deco.top}%`, transform: `rotate(${deco.rotate}deg) scale(${deco.scale})`, zIndex: 50 }}>
+                                        {deco.emoji}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-12 text-pink-400 font-black tracking-[0.3em] uppercase animate-pulse">心动瞬间 ✨</div>
+                        </div>
+                    )}
+                </div>
+            ) : null}
+
+            {/* 周报 (结算) */}
+            {gameState.turnState === 'REPORT' && (
+                <div className="absolute inset-0 z-[90] bg-white flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+                    <div className="w-full glass-card p-10 rounded-[3rem] shadow-2xl relative border-4 border-pink-50">
+                        <div className="w-20 h-2 bg-pink-100 mx-auto mb-10 rounded-full"></div>
+                        <h2 className="text-3xl font-black text-slate-700 mb-10 text-center tracking-tight">第 {gameState.week} 周总结</h2>
+                        
+                        <div className="space-y-8">
+                            <div className="bg-gradient-to-r from-pink-400 to-pink-300 p-6 rounded-[2rem] text-white shadow-md">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-black opacity-90">羁绊等级提升</span>
+                                    <span className="text-3xl font-black">+{gameState.weeklyStats.loveGained}</span>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-5">
+                                <div className="text-center p-5 rounded-3xl bg-slate-50 border border-slate-100">
+                                    <div className="text-[10px] text-slate-400 font-black mb-1 uppercase tracking-widest">应援支出</div>
+                                    <div className="text-pink-500 font-black text-xl">¥{gameState.weeklyStats.moneySpent}</div>
+                                </div>
+                                <div className="text-center p-5 rounded-3xl bg-slate-50 border border-slate-100">
+                                    <div className="text-[10px] text-slate-400 font-black mb-1 uppercase tracking-widest">搬砖收益</div>
+                                    <div className="text-emerald-500 font-black text-xl">¥{gameState.weeklyStats.moneyEarned}</div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-pink-50/30 rounded-3xl border-2 border-dashed border-pink-100 text-sm font-bold text-slate-500 italic text-center leading-relaxed">
+                                {gameState.lastLog}
+                            </div>
+                        </div>
+
+                        <button onClick={startNewWeek} className="w-full mt-10 btn-sweet py-5 rounded-3xl font-black shadow-lg text-lg tracking-widest">
+                            开启下一周
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default App;
